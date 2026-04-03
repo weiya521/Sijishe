@@ -21,6 +21,7 @@ import ddddocr
 import json
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
@@ -48,7 +49,17 @@ ocr = None
 def initialize_webdriver():
     """初始化WebDriver并设置选项"""
     options = webdriver.ChromeOptions()
-    options.binary_location = "chrome-win64/chrome.exe"
+    
+    # 智能寻找 Chrome 浏览器路径（解决解压套娃问题）
+    if os.path.exists("chrome-win64/chrome.exe"):
+        options.binary_location = "chrome-win64/chrome.exe"
+        print("找到浏览器路径: chrome-win64/chrome.exe")
+    elif os.path.exists("chrome-win64/chrome-win64/chrome.exe"):
+        options.binary_location = "chrome-win64/chrome-win64/chrome.exe"
+        print("找到浏览器路径: chrome-win64/chrome-win64/chrome.exe")
+    else:
+        print("警告: 无法找到自带的 Chrome，尝试使用系统默认浏览器...")
+
     options.add_argument('--disable-gpu')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
@@ -56,10 +67,13 @@ def initialize_webdriver():
     # 用户代理设置
     options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36')
     
-    # 如果需要无头模式，取消下行注释
-    # options.add_argument('--headless')
+    # 强烈建议在 Github Actions 中开启无头模式，否则可能会卡死
+    options.add_argument('--headless')
     
-    driver = webdriver.Chrome(options=options, executable_path='webdriver/chromedriver.exe')
+    # 使用 Service 对象规范地加载本地 chromedriver，消除警告并避免冲突
+    service = Service(executable_path='webdriver/chromedriver.exe')
+    driver = webdriver.Chrome(service=service, options=options)
+    
     driver.implicitly_wait(10)
     return driver
 
