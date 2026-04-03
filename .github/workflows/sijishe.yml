@@ -22,7 +22,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # 补全所有依赖，并锁定 selenium 版本防止旧代码崩溃
-          pip install requests lxml ddddocr selenium==4.9.1
+          pip install requests ddddocr selenium==4.9.1
 
       - name: 解压自带的 Chrome 浏览器
         run: |
