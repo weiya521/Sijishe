@@ -32,5 +32,6 @@ jobs:
         env:
           # 统一使用 XSIJISHE 这个变量名传递账号密码
           XSIJISHE: ${{ secrets.XSIJISHE }}
+          PYTHONIOENCODING: utf-8  # <--- 加上这一行，强制允许打印中文
         run: |
           python sijishe.py
