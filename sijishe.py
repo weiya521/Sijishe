@@ -6,16 +6,10 @@ new Env('司机社签到');
 环境变量名称：XSIJISHE
 直接使用账号密码登录,格式: 账号&密码
 多个账号使用@或换行间隔
-青龙Python依赖, requests, lxml, selenium, ddddocr
-[task_local]
-#司机社签到
-0 8 * * * https://raw.githubusercontent.com/jzjbyq/AutoCheckIn/main/sijishe.py, tag=司机社签到, enabled=true
-[rewrite_local]
-https://sijishea.com url script-request-header https://raw.githubusercontent.com/jzjbyq/AutoCheckIn/main/sijishe.py
+青龙Python依赖, requests, selenium, ddddocr
 """
 
 import os
-from lxml import etree
 import time
 from notify import send
 import urllib3
@@ -40,10 +34,11 @@ checkIn_status = 2
 send_content = ''
 cookies = {}
 
-# 签到积分信息页面
+# 核心配置：直接指定目标网址
+main_url = 'https://sjs66.com'
 sign_url = '/k_misign-sign.html'
+
 formhash = ''
-main_url = ''
 seccodehash = ''
 referer = ''
 
@@ -65,7 +60,6 @@ def initialize_webdriver():
     # options.add_argument('--headless')
     
     driver = webdriver.Chrome(options=options, executable_path='webdriver/chromedriver.exe')
-    # 设置隐式等待
     driver.implicitly_wait(10)
     return driver
 
@@ -85,76 +79,13 @@ def getrandom(code_len):
         code += all_char[num]
     return code
 
-def get_new_url():
-    """从发布页获取网站地址"""
-    global main_url
-    url = 'https://47447.net/'
-    ot_num = 1
-    ot_max_num = 10
-    
-    while ot_num < ot_max_num:
-        try:
-            print(f'尝试获取最新网址: 第{ot_num}/{ot_max_num}次')
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-            }
-            res = requests.get(url, headers=headers, timeout=15)
-            rhtml = etree.HTML(res.content.decode('utf-8'))
-
-            urls = checkstatus(rhtml)
-            if urls == '0':
-                print('所有站点都访问失败, 请检查自身网络')
-                exit(0)
-            main_url = urls
-            # 如果要直接指定网址，可以取消下面这行的注释
-            main_url = "https://sijishe.ink"
-            print(f'成功获取有效网址: {main_url}')
-            return 1
-        except Exception as e:
-            print('错误内容', e)
-            print(f'发布页地址获取失败，正在进行第{ot_num}/{ot_max_num}次重试')
-        time.sleep(10)
-        ot_num += 1
-    exit(0)
-
-def checkstatus(r_xpath):
-    """检查发布页中的最新站点并按顺序自动切换"""
-    r_xpath_num = r_xpath.xpath('//ul[@class="speedlist"]/li')
-    for i in range(1, len(r_xpath_num)+1):
-        # 获取地址名称和URL
-        url_name = r_xpath.xpath(f'//ul[@class="speedlist"]/li[{i}]/p/span[@class="url"]/text()')
-        if not url_name:
-            continue
-        
-        url_name = url_name[0]
-        if '地址' in url_name:
-            cs_url = r_xpath.xpath(f'//ul[@class="speedlist"]/li[{i}]/span[@class="btn-open"]/a/@href')
-            if not cs_url:
-                continue
-                
-            cs_url = cs_url[0]
-            try:
-                print('检测网址:', cs_url, '(', url_name.strip(), ')')
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-                }
-                cs_res = requests.get(cs_url, headers=headers, timeout=10)
-                if cs_res.status_code == 200:
-                    print('网址', cs_url, '有效')
-                    return cs_url
-            except Exception as e:
-                print('网址', cs_url, '失败:', str(e))
-    
-    print('所有地址检测完毕，没有可用的地址')
-    return '0'
-
 def get_cookie_formhash(driver):
     """初始化cookie和页面formhash信息"""
     global formhash, seccodehash, referer, cookies
     formhash = ''
     
     try:
-        print("正在获取必要的页面信息...")
+        print(f"正在连接目标网站 {main_url} 并获取必要信息...")
         driver.get(main_url + '/home.php?mod=space')
         
         # 等待页面加载完成，等待referer元素出现
@@ -214,11 +145,11 @@ def crack_captcha():
     # 将返回的二进制内容写入文件
     with open("captcha.png", 'wb') as f:
         f.write(response.content)
-	
+    
     # 重新以二进制读取方式打开刚刚保存的文件
     with open('captcha.png', 'rb') as fr:
         captcha_data = fr.read()
-	
+    
     captcha = ocr.classification(captcha_data)
     print(f'识别的验证码: {captcha}')
     
@@ -432,7 +363,6 @@ def printUserInfo(driver):
                     continue
             
             if not xm:
-                # 如果无法获取用户名，可能是页面结构变化
                 print("警告: 无法获取用户名，将使用默认值")
                 xm = "未知用户"
             
@@ -535,8 +465,8 @@ def start(postdata):
                 u = i.split('&')
                 # 读取账号到变量，密码直接使用原始密码
                 name = u[0]
-                pwd = u[1]  # 不再使用MD5加密，因为Selenium需要使用原始密码
-                print(f'处理账号: {name}')
+                pwd = u[1]  
+                print(f'\n========== 开始处理账号: {name} ==========')
             except:
                 print('账号参数格式错误')
                 send_content += "账号参数格式错误\n\n"
@@ -575,21 +505,26 @@ def start(postdata):
         send_content += f'执行过程中发生错误: {str(e)}\n'
         send('司机社签到', send_content)
 
-# 阿里云函数入口
+# 主程序入口
 def handler(event, context):
     try:
         _postdata = os.getenv('XSIJISHE')
+        if not _postdata:
+            print('未设置环境变量 XSIJISHE，程序退出')
+            exit(0)
     except Exception:
-        print('未设置环境变量 XSIJISHE')
+        print('读取环境变量异常，程序退出')
         exit(0)
         
-    # 添加随机延时
-    delay = random.randint(0, 1)  # 随机延时0-1秒
+    # 添加随机延时，防止同一时间并发请求被拦截
+    delay = random.randint(0, 5)  
+    print(f"随机延时 {delay} 秒后启动...")
     time.sleep(delay)
     
-    # 获取网站地址并执行签到
-    if get_new_url():
-        start(_postdata)
+    print(f"== 目标签到站点已指定为: {main_url} ==")
+    
+    # 直接执行签到核心逻辑
+    start(_postdata)
     exit(0)
 
 if __name__ == '__main__':
