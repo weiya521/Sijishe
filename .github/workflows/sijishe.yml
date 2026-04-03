@@ -26,7 +26,7 @@ jobs:
 
       - name: 解压自带的 Chrome 浏览器
         run: |
-          7z x chrome-win64.7z -o"chrome-win64"
+          7z x chrome-win64.7z
 
       - name: 运行签到脚本
         env:
