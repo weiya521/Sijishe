@@ -578,7 +578,7 @@ def start(postdata):
 # 阿里云函数入口
 def handler(event, context):
     try:
-        _postdata = "账号&密码"
+        _postdata = os.getenv('XSIJISHE')
     except Exception:
         print('未设置环境变量 XSIJISHE')
         exit(0)
